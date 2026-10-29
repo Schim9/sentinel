@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Sentinel</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:system-ui,sans-serif;background:#f5f5f5;color:#222;min-height:100vh;display:flex;align-items:center;justify-content:center}
+    .card{background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.12);padding:32px 28px;width:100%;max-width:340px}
+    h1{font-size:16px;font-weight:700;margin-bottom:6px}
+    .sub{font-size:13px;color:#888;margin-bottom:24px}
+    label{display:block;font-size:12px;font-weight:600;color:#555;margin-bottom:6px}
+    input[type=password]{width:100%;padding:10px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:15px;outline:none;transition:border-color .15s}
+    input[type=password]:focus{border-color:#059669}
+    .error-msg{font-size:12px;color:#dc2626;margin-top:6px}
+    button{width:100%;margin-top:16px;padding:11px;background:#059669;color:#fff;font-size:14px;font-weight:600;border:none;border-radius:8px;cursor:pointer;transition:background .15s}
+    button:hover{background:#047857}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Sentinel</h1>
+    <p class="sub">Entrez votre code pour rafraîchir et consulter le rapport.</p>
+    <form method="post" action="/report">
+      <label for="secret">Code d'accès</label>
+      <input type="password" id="secret" name="secret" autofocus autocomplete="current-password"/>
+      <div th:if="${error}" class="error-msg">Code incorrect.</div>
+      <button type="submit">Rafraîchir</button>
+    </form>
+  </div>
+</body>
+</html>

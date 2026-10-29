@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="fr">
+<head><meta charset="UTF-8"/></head>
+<body>
+  <h2 th:text="${title}">Titre</h2>
+  <pre th:text="${body}">Corps</pre>
+  <p><a th:href="${url}" th:text="${url}">Voir le rapport</a></p>
+</body>
+</html>

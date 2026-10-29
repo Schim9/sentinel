@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Sentinel — État</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:system-ui,sans-serif;font-size:14px;background:#f5f5f5;color:#222}
+    header{background:#1a1a2e;color:#fff;padding:12px 16px}
+    header h1{font-size:18px;font-weight:600}
+    main{padding:16px;max-width:960px;margin:0 auto}
+    section{margin-bottom:20px}
+    h2{font-size:14px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#555;margin-bottom:8px}
+    .card{background:#fff;border-radius:6px;box-shadow:0 1px 3px rgba(0,0,0,.1);padding:12px 14px;margin-bottom:8px}
+    .badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:12px;font-weight:600}
+    .ok{background:#d1fae5;color:#065f46}.warn{background:#fef3c7;color:#92400e}.crit{background:#fee2e2;color:#991b1b}.silent{background:#e5e7eb;color:#374151}
+    table{width:100%;border-collapse:collapse}
+    th,td{text-align:left;padding:6px 8px;border-bottom:1px solid #eee}
+    th{font-size:12px;color:#666;font-weight:600}
+    .ts{font-size:11px;color:#999}
+  </style>
+</head>
+<body>
+<header>
+  <h1>Sentinel — État du système</h1>
+  <div class="ts" th:if="${status.lastAppCheckAt() != null}"
+       th:text="${'vérif. ' + @dateFormatter.formatShort(status.lastAppCheckAt())}">—</div>
+</header>
+<main>
+
+  <section>
+    <h2>Hôtes</h2>
+    <div class="card" th:each="host : ${status.hosts()}">
+      <strong th:text="${host.name()}">—</strong>
+      <span class="badge"
+            th:classappend="${host.state()}"
+            th:text="${host.state()}">OK</span>
+      <span class="ts" th:if="${host.lastTemp() != null}"
+            th:text="' · ' + ${#numbers.formatDecimal(host.lastTemp(), 1, 1)} + '°C'">—</span>
+      <span class="ts" th:if="${host.lastReportAt() != null}"
+            th:text="' · ' + ${@dateFormatter.format(host.lastReportAt())}">—</span>
+    </div>
+  </section>
+
+  <section>
+    <h2>Applications</h2>
+    <table>
+      <thead>
+        <tr><th>App</th><th>Hôte</th><th>Interne</th><th>Externe</th></tr>
+      </thead>
+      <tbody>
+        <tr th:each="app : ${status.apps()}">
+          <td th:text="${app.name()}">—</td>
+          <td th:text="${app.host()}">—</td>
+          <td><span class="badge" th:classappend="${app.internalState()}" th:text="${app.internalState()}">—</span></td>
+          <td th:if="${app.externalState() != null}">
+            <span class="badge" th:classappend="${app.externalState()}" th:text="${app.externalState()}">—</span>
+          </td>
+          <td th:unless="${app.externalState() != null}" class="ts">—</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section th:if="${not #lists.isEmpty(status.openIncidents())}">
+    <h2>Incidents ouverts</h2>
+    <div class="card" th:each="incident : ${status.openIncidents()}">
+      <span class="badge" th:classappend="${#strings.toLowerCase(incident.severity())}"
+            th:text="${incident.severity()}">CRIT</span>
+      <strong th:text="${incident.subjectKey()}">—</strong>
+      <span th:text="' · ' + ${incident.message()}">—</span>
+      <span class="ts" th:text="' depuis ' + ${@dateFormatter.format(incident.openedAt())}">—</span>
+    </div>
+  </section>
+
+</main>
+</body>
+</html>

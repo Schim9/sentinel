@@ -1,0 +1,110 @@
+server:
+  port: 8090
+  forward-headers-strategy: native
+
+sentinel:
+  public-port: 8091
+  public-base-url: https://sentinel.example.com  # override in secrets.yml
+  timezone: Europe/Paris
+
+  # Hosts and apps are defined here as examples.
+  # Override with your actual infrastructure in secrets.yml (lists replace entirely, they do not merge).
+  hosts:
+    - name: pi-1
+      model: pi3
+      ip: 192.168.1.10
+    - name: pi-2
+      model: pi5
+      ip: 192.168.1.11
+      thresholds:
+        cpu-temp-warn: 75.0
+        cpu-temp-crit: 85.0
+
+  apps:
+    - name: my-app
+      host: pi-1
+      internal-url: http://192.168.1.10:8080/api/status
+      external-url: https://my-app.example.com/api/status
+      parse-status-body: true
+
+  thresholds:
+    cpu-temp-warn: 70.0
+    cpu-temp-crit: 80.0
+    disk-warn-pct: 80
+    disk-crit-pct: 90
+    mem-available-warn-pct: 15.0
+    mem-available-crit-pct: 5.0
+    swap-used-warn-pct: 50
+    swap-used-crit-pct: 85
+    load-warn-per-core: 2.0
+    load-crit-per-core: 4.0
+    cert-warn-days: 14
+    cert-crit-days: 3
+
+  evaluation:
+    report-interval: PT30M
+    silence-threshold: PT2H
+    startup-grace: PT30M
+    breach-count: 2
+    recovery-count: 2
+    app-check-interval: PT30M
+    app-check-timeout: PT5S
+    app-breach-count: 2
+
+  notifications:
+    crit-reminder-interval: PT24H
+    quiet-hours:
+      enabled: true
+      start: "22:00"
+      end: "07:00"
+    grouping-window: PT30S
+
+  refresh-min-interval: PT10M
+
+  digest:
+    cron: "0 0 8 * * *"
+    token-validity: PT168H
+    ack-timeout: PT36H
+    escalation-interval: PT24H
+
+  weekly-report:
+    cron: "0 0 8 * * MON"
+
+  retention:
+    raw: P30D
+    history: P365D
+
+spring:
+  config:
+    import: "optional:file:/opt/sentinel/config/secrets.yml"
+  datasource:
+    url: jdbc:sqlite:/opt/sentinel/data/sentinel.db
+    driver-class-name: org.sqlite.JDBC
+    hikari:
+      maximum-pool-size: 1
+  jpa:
+    database-platform: org.hibernate.community.dialect.SQLiteDialect
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    open-in-view: false
+  flyway:
+    locations: classpath:db/migration
+  threads:
+    virtual:
+      enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+  server:
+    port: 8090
+
+logging:
+  level:
+    lu.kaminski.sentinel: INFO

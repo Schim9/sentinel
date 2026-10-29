@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Sentinel — Rapport</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:system-ui,sans-serif;font-size:14px;background:#f5f5f5;color:#222}
+    .banner{padding:16px;color:#fff;text-align:center;font-weight:700;font-size:16px}
+    .banner.ok{background:#059669}.banner.warn{background:#d97706}.banner.crit{background:#dc2626}
+    main{padding:16px;max-width:720px;margin:0 auto}
+    section{margin-bottom:20px}
+    h2{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#555;margin-bottom:8px}
+    .card{background:#fff;border-radius:6px;box-shadow:0 1px 3px rgba(0,0,0,.1);padding:12px 14px;margin-bottom:8px}
+    .row{display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid #f3f3f3}
+    .row:last-child{border-bottom:none}
+    .label{color:#666;font-size:12px}
+    .badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:12px;font-weight:600}
+    .ok{background:#d1fae5;color:#065f46}.warn{background:#fef3c7;color:#92400e}.crit{background:#fee2e2;color:#991b1b}
+    .ack-btn{display:block;width:100%;padding:14px;background:#059669;color:#fff;font-size:16px;font-weight:700;border:none;border-radius:8px;cursor:pointer;margin-top:20px}
+    .ack-btn:hover{background:#047857}
+    .acked{padding:14px;text-align:center;background:#d1fae5;border-radius:8px;color:#065f46;font-weight:600;margin-top:20px}
+    footer{text-align:center;font-size:11px;color:#999;padding:16px}
+    .ts{font-size:11px;color:#999}
+  </style>
+</head>
+<body>
+
+<!-- Bandeau d'état global -->
+<div class="banner"
+     th:classappend="${#lists.isEmpty(status.openIncidents())} ? 'ok' : 'crit'"
+     th:text="${#lists.isEmpty(status.openIncidents()) ? 'Tout va bien' : status.openIncidents().size() + ' problème(s) en cours'}">
+  État
+</div>
+
+<main>
+
+  <!-- Hôtes -->
+  <section>
+    <h2>Hôtes</h2>
+    <div class="card" th:each="host : ${status.hosts()}">
+      <div class="row">
+        <span th:text="${host.name()}">—</span>
+        <span class="badge" th:classappend="${#strings.toLowerCase(host.state())}" th:text="${host.state()}">OK</span>
+      </div>
+      <div class="row" th:if="${host.lastTemp() != null}">
+        <span class="label">Température</span>
+        <span th:text="${#numbers.formatDecimal(host.lastTemp(), 1, 1) + '°C'}">—</span>
+      </div>
+      <div class="row" th:if="${host.lastReportAt() != null}">
+        <span class="label">Dernier rapport</span>
+        <span class="ts" th:text="${@dateFormatter.format(host.lastReportAt())}">—</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Applications -->
+  <section>
+    <h2>Applications</h2>
+    <p th:if="${status.lastAppCheckAt() != null}" style="font-size:11px;color:#999;margin-bottom:8px"
+       th:text="${'Dernière vérif. : ' + @dateFormatter.format(status.lastAppCheckAt())}">—</p>
+    <div class="card" th:each="app : ${status.apps()}">
+      <div class="row">
+        <span th:text="${app.name()}">—</span>
+        <span class="badge" th:classappend="${#strings.toLowerCase(app.state())}" th:text="${app.state()}">OK</span>
+      </div>
+      <div class="row">
+        <span class="label">Interne</span>
+        <span class="badge" th:classappend="${#strings.toLowerCase(app.internalState())}" th:text="${app.internalState()}">—</span>
+      </div>
+      <div class="row" th:if="${app.externalState() != null}">
+        <span class="label">Externe</span>
+        <span class="badge" th:classappend="${#strings.toLowerCase(app.externalState())}" th:text="${app.externalState()}">—</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Incidents récents -->
+  <section th:if="${not #lists.isEmpty(status.openIncidents())}">
+    <h2>Incidents ouverts</h2>
+    <div class="card" th:each="incident : ${status.openIncidents()}">
+      <div class="row">
+        <span th:text="${incident.subjectKey()}">—</span>
+        <span class="badge" th:classappend="${#strings.toLowerCase(incident.severity())}"
+              th:text="${incident.severity()}">CRIT</span>
+      </div>
+      <div class="row">
+        <span class="label" th:text="${incident.message()}">—</span>
+        <span class="ts" th:text="${incident.openedAt()}">—</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Bouton d'accusé (DIGEST non acquitté) -->
+  <th:block th:if="${isDigest}">
+    <th:block th:if="${not accessToken.acked}">
+      <form th:action="'/ack/' + ${token}" method="post">
+        <button type="submit" class="ack-btn">J'ai pris connaissance</button>
+      </form>
+    </th:block>
+    <th:block th:if="${accessToken.acked}">
+      <div class="acked">
+        Confirmé le <span th:text="${@dateFormatter.format(accessToken.ackedAt)}">—</span>
+      </div>
+    </th:block>
+  </th:block>
+
+</main>
+
+<footer>
+  sentinel
+</footer>
+
+</body>
+</html>

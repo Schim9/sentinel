@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Sentinel — Rapport</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:system-ui,sans-serif;font-size:14px;background:#f5f5f5;color:#222}
+    .banner{padding:14px 16px;color:#fff;font-weight:700;font-size:15px;text-align:center}
+    .banner.ok{background:#059669}.banner.warn{background:#d97706}.banner.crit{background:#dc2626}
+    main{padding:16px;max-width:900px;margin:0 auto}
+    section{margin-bottom:24px}
+    details{margin-bottom:24px}
+    details[open] summary{margin-bottom:10px}
+    summary{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#888;cursor:pointer;list-style:none;display:flex;align-items:center;gap:6px;user-select:none}
+    summary::-webkit-details-marker{display:none}
+    summary::before{content:'▶';font-size:9px;transition:transform .15s;display:inline-block}
+    details[open] summary::before{transform:rotate(90deg)}
+    h2{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#888;margin-bottom:10px}
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
+    .card{background:#fff;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.1);padding:14px}
+    .card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+    .card-title{font-weight:600;font-size:14px}
+    .row{display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid #f3f3f3;font-size:13px}
+    .row:last-child{border-bottom:none}
+    .label{color:#888;font-size:12px}
+    .badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700}
+    .ok{background:#d1fae5;color:#065f46}
+    .warn{background:#fef3c7;color:#92400e}
+    .crit{background:#fee2e2;color:#991b1b}
+    .silent{background:#e5e7eb;color:#374151}
+    .unknown{background:#e5e7eb;color:#374151}
+    .bar-wrap{background:#eee;border-radius:4px;height:6px;width:80px;display:inline-block;vertical-align:middle}
+    .bar{display:block;height:6px;border-radius:4px;background:#059669}
+    .bar.warn{background:#d97706}.bar.crit{background:#dc2626}
+    table{width:100%;border-collapse:collapse;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+    th{font-size:11px;font-weight:700;text-transform:uppercase;color:#888;padding:8px 12px;text-align:left;background:#fafafa;border-bottom:1px solid #eee}
+    td{padding:8px 12px;border-bottom:1px solid #f3f3f3;font-size:13px}
+    tr:last-child td{border-bottom:none}
+    .cert-badge{margin-top:3px}
+    @media(min-width:560px){.col-cert{display:table-cell !important}.col-cert-inline{display:none}}
+    .incident-card{background:#fff;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.1);padding:12px 14px;margin-bottom:8px;border-left:4px solid #dc2626}
+    .incident-card.warn{border-left-color:#d97706}
+    .incident-key{font-weight:600;font-size:13px}
+    .incident-msg{color:#555;font-size:12px;margin-top:2px}
+    .incident-since{color:#aaa;font-size:11px;margin-top:2px}
+    .all-ok{background:#d1fae5;color:#065f46;border-radius:8px;padding:14px;text-align:center;font-weight:600}
+    footer{text-align:center;font-size:11px;color:#bbb;padding:20px}
+  </style>
+</head>
+<body>
+
+<div class="banner"
+     th:classappend="${#lists.isEmpty(status.openIncidents()) ? 'ok' : 'crit'}"
+     th:text="${#lists.isEmpty(status.openIncidents()) ? 'Tout va bien' : status.openIncidents().size() + ' incident(s) en cours'}">
+  État
+</div>
+
+<div th:if="${rateLimitedSeconds != null}"
+     style="background:#fef3c7;color:#92400e;padding:10px 16px;font-size:13px;text-align:center">
+  Rapport en cache — prochain refresh possible dans <span th:text="${rateLimitedSeconds}">?</span>s
+</div>
+
+<main>
+
+  <!-- Hôtes -->
+  <details open th:if="${not #lists.isEmpty(status.hosts())}">
+    <summary>Raspberry Pi</summary>
+    <div class="grid">
+      <div class="card" th:each="host : ${status.hosts()}">
+        <div class="card-header">
+          <span class="card-title" th:text="${host.name()}">—</span>
+          <span class="badge"
+                th:classappend="${#strings.toLowerCase(host.state())}"
+                th:text="${host.state()}">OK</span>
+        </div>
+
+        <div class="row" th:if="${host.lastTemp() != null}">
+          <span class="label">Température</span>
+          <span th:text="${#numbers.formatDecimal(host.lastTemp(), 1, 1) + '°C'}">—</span>
+        </div>
+
+        <div class="row" th:if="${host.diskPct() != null}">
+          <span class="label">Disque</span>
+          <span>
+            <span class="bar-wrap">
+              <span class="bar"
+                    th:classappend="${host.diskPct() >= 90 ? 'crit' : (host.diskPct() >= 80 ? 'warn' : '')}"
+                    th:style="|width:${host.diskPct()}%|"></span>
+            </span>
+            <span th:text="${host.diskPct() + '%'}">—</span>
+          </span>
+        </div>
+
+        <div class="row" th:if="${host.memAvailablePct() != null}">
+          <span class="label">RAM dispo</span>
+          <span th:text="${#numbers.formatDecimal(host.memAvailablePct(), 1, 1) + '%'}">—</span>
+        </div>
+
+        <div class="row" th:if="${host.lastBootTime() != null}">
+          <span class="label">Dernier boot</span>
+          <span class="label" th:text="${@dateFormatter.format(host.lastBootTime())}">—</span>
+        </div>
+
+        <div class="row" th:if="${host.lastReportAt() != null}">
+          <span class="label">Dernier rapport</span>
+          <span class="label" th:text="${@dateFormatter.format(host.lastReportAt())}">—</span>
+        </div>
+
+        <div th:if="${not #lists.isEmpty(host.services())}" style="margin-top:8px">
+          <div class="row" th:each="svc : ${host.services()}">
+            <span class="label" th:text="${svc.name()}">—</span>
+            <span class="badge"
+                  th:classappend="${svc.state() == 'active'} ? 'ok' : 'crit'"
+                  th:text="${svc.state()}">—</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </details>
+
+  <!-- Applications -->
+  <details open>
+    <summary>Applications</summary>
+    <p th:if="${status.lastAppCheckAt() != null}" style="font-size:11px;color:#999;margin-bottom:8px"
+       th:text="${'Dernière vérif. : ' + @dateFormatter.format(status.lastAppCheckAt())}">—</p>
+    <table>
+      <thead>
+        <tr>
+          <th>Application</th>
+          <th>Hôte</th>
+          <th>Interne</th>
+          <th>Externe</th>
+          <th class="col-cert" style="display:none">Cert</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr th:each="app : ${status.apps()}">
+          <td th:text="${app.name()}">—</td>
+          <td class="label" th:text="${app.host()}">—</td>
+          <td>
+            <span class="badge"
+                  th:classappend="${#strings.toLowerCase(app.internalState())}"
+                  th:text="${app.internalState()}">—</span>
+          </td>
+          <td>
+            <span th:if="${app.externalState() != null}"
+                  class="badge"
+                  th:classappend="${#strings.toLowerCase(app.externalState())}"
+                  th:text="${app.externalState()}">—</span>
+            <span th:unless="${app.externalState() != null}" class="label">—</span>
+            <!-- Cert inline sur mobile uniquement si problème -->
+            <div th:if="${app.certState() != null and (app.certState() == 'WARN' or app.certState() == 'CRIT')}"
+                 class="cert-badge col-cert-inline">
+              <span class="badge"
+                    th:classappend="${#strings.toLowerCase(app.certState())}"
+                    th:text="${'cert ' + app.certState()}">—</span>
+            </div>
+          </td>
+          <td class="col-cert" style="display:none">
+            <span th:if="${app.certState() != null}"
+                  class="badge"
+                  th:classappend="${#strings.toLowerCase(app.certState())}"
+                  th:text="${app.certState()}">—</span>
+            <span th:unless="${app.certState() != null}" class="label">—</span>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </details>
+
+  <!-- Incidents -->
+  <details open>
+    <summary>Incidents ouverts</summary>
+    <div th:if="${#lists.isEmpty(status.openIncidents())}" class="all-ok">
+      Aucun incident en cours
+    </div>
+    <div th:each="i : ${status.openIncidents()}"
+         class="incident-card"
+         th:classappend="${#strings.toLowerCase(i.severity())}">
+      <div class="incident-key" th:text="${i.subjectKey()}">—</div>
+      <div class="incident-msg" th:text="${i.message()}">—</div>
+      <div class="incident-since" th:text="${'depuis ' + @dateFormatter.format(i.openedAt())}">—</div>
+    </div>
+  </details>
+
+</main>
+
+<footer>sentinel</footer>
+</body>
+</html>

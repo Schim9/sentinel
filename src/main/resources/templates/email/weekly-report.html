@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="fr">
+<head><meta charset="UTF-8"/></head>
+<body>
+  <h1>Rapport hebdomadaire sentinel</h1>
+
+  <h2>Hôtes</h2>
+  <ul>
+    <li th:each="host : ${status.hosts()}">
+      <span th:text="${host.name()}">—</span> —
+      <span th:text="${host.state()}">—</span>
+    </li>
+  </ul>
+
+  <h2>Applications</h2>
+  <ul>
+    <li th:each="app : ${status.apps()}">
+      <span th:text="${app.name()}">—</span> —
+      <span th:text="${app.state()}">—</span>
+    </li>
+  </ul>
+</body>
+</html>

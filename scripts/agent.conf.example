@@ -1,0 +1,13 @@
+# /opt/app/sentinel-agent/agent.conf — configuration de l'agent sentinel-report
+# chmod 640 ; propriétaire root, groupe sentinel-agent
+# Le nom HOST_NAME doit correspondre exactement à monitoring.hosts[].name côté app.
+
+HOST_NAME="pi-backend-1"
+MONITOR_URL="http://192.168.1.x:8090"      # sur le Pi 5 : http://localhost:8090
+API_TOKEN="<SECRET_PROPRE_A_CET_HOTE>"
+DISK_MOUNTS="/"                             # liste séparée par des espaces
+SERVICES="solarinverter.service dmarcdashboard.service"
+
+# Fréquence des rapports (relancer install-agent.sh après modification)
+REPORT_INTERVAL_MIN=30   # intervalle du rapport normal (minutes, entre 1 et 59)
+FULL_REPORT_HOUR=6       # heure du rapport --full quotidien (0-23, heure locale)
