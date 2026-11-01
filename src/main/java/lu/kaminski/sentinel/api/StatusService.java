@@ -1,20 +1,20 @@
 package lu.kaminski.sentinel.api;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import lu.kaminski.sentinel.appcheck.AppCheckRepository;
 import lu.kaminski.sentinel.config.SentinelProperties;
-import lu.kaminski.sentinel.domain.Host;
+import lu.kaminski.sentinel.domain.AppCheckRecord;
 import lu.kaminski.sentinel.domain.CheckState;
+import lu.kaminski.sentinel.domain.Host;
 import lu.kaminski.sentinel.evaluation.CheckStateRepository;
 import lu.kaminski.sentinel.evaluation.IncidentRepository;
 import lu.kaminski.sentinel.report.HostRepository;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.time.Clock;
-import java.time.Instant;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @Slf4j
@@ -27,7 +27,6 @@ public class StatusService {
     private final AppCheckRepository   appCheckRepository;
     private final SentinelProperties   props;
     private final ObjectMapper         objectMapper;
-    private final Clock                clock;
 
     public GlobalStatus currentStatus() {
         List<HostSummary> hosts = hostRepository.findAll().stream()
@@ -44,7 +43,7 @@ public class StatusService {
                 .toList();
 
         String lastAppCheckAt = appCheckRepository.findLatestOverall()
-                .map(r -> r.getCheckedAt())
+                .map(AppCheckRecord::getCheckedAt)
                 .orElse(null);
 
         return new GlobalStatus(hosts, apps, incidents, lastAppCheckAt);
@@ -72,20 +71,20 @@ public class StatusService {
         Double lastTemp = states.stream()
                 .filter(cs -> cs.getSubjectKey().endsWith(":cpu-temp"))
                 .findFirst()
-                .map(cs -> cs.getLastNumeric())
+                .map(CheckState::getLastNumeric)
                 .orElse(null);
 
         Integer diskPct = states.stream()
                 .filter(cs -> cs.getSubjectKey().contains(":disk:"))
-                .map(cs -> cs.getLastNumeric())
-                .filter(v -> v != null)
+                .map(CheckState::getLastNumeric)
+                .filter(Objects::nonNull)
                 .mapToInt(Double::intValue)
                 .max().stream().boxed().findFirst().orElse(null);
 
         Double memAvailablePct = states.stream()
                 .filter(cs -> cs.getSubjectKey().endsWith(":mem"))
                 .findFirst()
-                .map(cs -> cs.getLastNumeric())
+                .map(CheckState::getLastNumeric)
                 .orElse(null);
 
         List<ServiceStatus> services = states.stream()
@@ -104,11 +103,11 @@ public class StatusService {
 
     private AppSummary toAppSummary(SentinelProperties.AppConfig app) {
         String internalState = checkStateRepository.findById("app:" + app.getName() + ":internal")
-                .map(cs -> cs.getState()).orElse("UNKNOWN");
+                .map(CheckState::getState).orElse("UNKNOWN");
         String externalState = checkStateRepository.findById("app:" + app.getName() + ":external")
-                .map(cs -> cs.getState()).orElse(null);
+                .map(CheckState::getState).orElse(null);
         String certState = checkStateRepository.findById("app:" + app.getName() + ":cert")
-                .map(cs -> cs.getState()).orElse(null);
+                .map(CheckState::getState).orElse(null);
         String worst = "CRIT".equals(internalState) || "CRIT".equals(externalState) || "CRIT".equals(certState) ? "CRIT"
                 : "WARN".equals(internalState) || "WARN".equals(externalState) || "WARN".equals(certState) ? "WARN" : "OK";
         return new AppSummary(app.getName(), app.getHost(), worst, internalState, externalState, certState);
@@ -128,7 +127,13 @@ public class StatusService {
             List<AppSummary> apps,
             List<IncidentSummary> openIncidents,
             String lastAppCheckAt
-    ) {}
+    ) {
+        public String worstLevel() {
+            if (openIncidents.isEmpty()) return "ok";
+            boolean hasCrit = openIncidents.stream().anyMatch(i -> "CRIT".equals(i.severity()));
+            return hasCrit ? "crit" : "warn";
+        }
+    }
 
     public record HostSummary(
             String name, String model, String hostState, String checkState,

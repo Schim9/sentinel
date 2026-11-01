@@ -41,22 +41,22 @@ Dashboard Angular avec historique et graphiques, mesure de consommation électri
                                │
                           [Routeur] ──► [NAS Synology : reverse proxy DSM + TLS Let's Encrypt]
                                                 │
-                    sentinel.<your-domain> ─────┘──► pi5:8091  (port PUBLIC : /ack/** seulement)
+                    sentinel.<your-domain> ─────┘──► pi5:8091  (port PUBLIC : /ack/**, /api/status, /report, /public-assets/**)
 
 Réseau local 192.168.x.0/24
-┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────────────────────┐
-│ pi-domoticz  │  │ pi-backend-1 │  │ pi-backend-2 │  │ pi5                                  │
-│ cron: script │  │ cron: script │  │ cron: script │  │ cron: script ─► localhost            │
-└──────┬───────┘  └──────┬───────┘  └──────┬───────┘  │                                      │
-       │  POST /api/reports (toutes les 5 min)│         │ sentinel                            │
-       └────────────────┴─────────────────┴────────►│   :8090 port INTERNE (rapports,       │
-                                                     │          actuator, page d'état)       │
-  ◄──── GET checks internes (http://ip:port/...) ────│   :8091 port PUBLIC (/ack/** only)   │
-  ◄──── GET checks externes (https://xxx.<your-domain>)│   SQLite /opt/sentinel/data         │
-                                                     └───────┬───────────────┬──────────────┘
-                                                             │               │
-                                                     Pushbullet API     SMTP Strato
-                                                     (alertes, digest)  (escalade, hebdo)
+┌──────────────┐  ┌──────────────┐  ┌──────────────┐   ┌───────────────────────────────────────┐
+│ pi-domoticz  │  │ pi-backend-1 │  │ pi-backend-2 │   │ pi5                                   │
+│ cron: script │  │ cron: script │  │ cron: script │   │ cron: script ─► localhost             │
+└──────┬───────┘  └──────┬───────┘  └──────┬───────┘   │                                       │
+       │  POST /api/reports (*/5 min)      │           │ sentinel                              │
+       └─────────────────┴─────────────────┴──────────►│   :8090 port INTERNE (rapports,       │
+                                                       │          actuator, page d'état)       │
+  ◄──── GET checks internes (http://ip:port/...) ──────│   :8091 port PUBLIC                   │
+  ◄──── GET checks externes (https://...) ─────────────│   SQLite /opt/sentinel/data           │
+                                                       └───────┬───────────────┬───────────────┘
+                                                               │               │
+                                                       Pushbullet API     SMTP Strato
+                                                       (alertes, digest)  (escalade, hebdo)
 
 [NAS] tâche planifiée : GET http://pi5:8090/actuator/health toutes les 15 min → e-mail DSM si KO
 ```
@@ -179,7 +179,7 @@ L'app écoute sur **deux connecteurs Tomcat** :
 | Port | Nom | Accessible depuis | Routes autorisées |
 |---|---|---|---|
 | `8090` | interne | réseau local uniquement | tout : `/api/**`, `/actuator/**`, `/` (page d'état), `/ack/**` |
-| `8091` | public | Internet via reverse proxy NAS | **uniquement** `GET/POST /ack/{token}` et `/public-assets/**` |
+| `8091` | public | Internet via reverse proxy NAS | **uniquement** `GET/POST /ack/{token}`, `/public-assets/**`, `GET /report` et `POST /report`, `GET /api/status` |
 
 Implémentation :
 - Connecteur additionnel via `WebServerFactoryCustomizer<TomcatServletWebServerFactory>`.
@@ -495,7 +495,7 @@ Fournir un `secrets.example.yml` dans le dépôt et ajouter `secrets.yml` au `.g
 **Application** :
 - Unitaires : chaque règle du §3.5 (seuils, surcharge par hôte, bits de throttling), machine d'état anti-flapping, regroupement des notifs, heures calmes, diagnostic croisé interne/externe, corrélation hôte silencieux, génération et hachage des tokens, expiration.
 - Intégration (`@SpringBootTest`, ports aléatoires) :
-  - **Port public** : toutes les routes hors `/ack/**` et `/public-assets/**` → 404 sur le port public ; elles répondent normalement sur le port interne.
+  - **Port public** : toutes les routes hors `/ack/**`, `/public-assets/**`, `/report` et `/api/status` → 404 sur le port public ; elles répondent normalement sur le port interne.
   - `POST /api/reports` : token valide / invalide / hôte inconnu / JSON invalide.
   - Pushbullet simulé (WireMock) : succès, 5xx avec bascule e-mail, 429.
   - SMTP simulé (GreenMail) : escalade après `ack-timeout`, relance après `escalation-interval`, arrêt après accusé.
@@ -508,7 +508,7 @@ Fournir un `secrets.example.yml` dans le dépôt et ajouter `secrets.yml` au `.g
 2. Arrêter le service d'une app → notif « ne répond plus » sous ~6 min ; le relancer → notif « résolu ».
 3. Couper un Pi → une seule notif « injoignable » sous ~15 min.
 4. Désactiver la règle reverse proxy d'une app → notif « injoignable via le proxy ».
-5. Digest reçu à 08:00 ; le lien s'ouvre en 4G hors du domicile ; le bouton acquitte ; `https://sentinel.<your-domain>/api/status` et `/actuator/health` renvoient 404 depuis l'extérieur.
+5. Digest reçu à 08:00 ; le lien s'ouvre en 4G hors du domicile ; le bouton acquitte ; `https://sentinel.<your-domain>/api/status` renvoie le healthcheck JSON depuis l'extérieur (exposé intentionnellement sur le port public) ; `/actuator/health` renvoie 404 depuis l'extérieur.
 6. Sans accusé pendant 36 h → e-mail reçu sur la boîte <your-domain>.
 7. Token Pushbullet volontairement invalide → e-mail de bascule reçu.
 8. Arrêter sentinel → e-mail DSM du NAS sous 15 min.

@@ -24,15 +24,15 @@ Système de supervision d'infrastructure domestique pour Raspberry Pi. Sentinel 
 Réseau local
 ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌──────────────────────────────┐
 │   Pi A      │  │   Pi B      │  │   Pi C      │  │   Pi central                 │
-│ cron: agent │  │ cron: agent │  │ cron: agent │  │ cron: agent → localhost       │
+│ cron: agent │  │ cron: agent │  │ cron: agent │  │ cron: agent → localhost      │
 └──────┬──────┘  └──────┬──────┘  └──────┬──────┘  │                              │
-       │    POST /api/reports (*/5 min)   │         │ sentinel                     │
-       └──────────────┴───────────────┴──┼────────► │   :8090  port INTERNE        │
-                                         │          │   :8091  port PUBLIC         │
-  ◄── checks internes (http://ip:port)───┤          │   SQLite                     │
-  ◄── checks externes (https://…)────────┘          └──────────┬───────────────────┘
-                                                               │
-                                                    Pushbullet · SMTP
+       │    POST /api/reports (*/5 min)  │         │ sentinel                     │
+       └────────────────┴────────────────┴───────► │   :8090  port INTERNE        │
+  ◄── checks internes (http://ip:port) ────────────│   :8091  port PUBLIC         │
+  ◄── checks externes (https://…) ──────────────── │   SQLite                     │
+                                                   └──────────┬───────────────────┘
+                                                              │
+                                                       Pushbullet · SMTP
 ```
 
 Le Pi central se surveille lui-même : le NAS interroge `/actuator/health` toutes les 15 min et envoie un e-mail DSM si l'endpoint ne répond plus.
